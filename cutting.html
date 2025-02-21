@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Раскрой заготовок</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      min-width: 450px;
+    }
+    label, textarea.element {
+      max-width: 100%;
+      display: block;
+      margin-bottom: 10px;
+    }
+    button {
+      display: block;
+      margin-bottom: 10px;  
+    }
+
+    .element {
+      height: 50px;
+      width: 500px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Расчет раскроя заготовок</h1>
+  
+  <label for="stockLength">Длина заготовки (м):</label>
+  <input type="number" id="stockLength" value="12" min="1" step="0.1">
+
+  <label for="elements">Длины элементов (через запятую, в метрах):</label>
+  <textarea type="text" class="element" id="elements" placeholder="Пример: 2.5, 4.3, 3.8, 2.2, 1.5, 3"></textarea>
+
+  <button onclick="calculate()">Рассчитать</button>
+
+  <h2>Результат:</h2>
+  <textarea id="output" readonly></textarea>
+
+  <script>
+    function calculate() {
+      const stockLength = parseFloat(document.getElementById("stockLength").value);
+      const elementsInput = document.getElementById("elements").value;
+      const output = document.getElementById("output");
+
+      // Преобразуем введенные длины в массив чисел
+      const elements = elementsInput.split(",").map(el => parseFloat(el.trim())).filter(el => !isNaN(el) && el > 0);
+
+      if (!stockLength || stockLength <= 0) {
+        output.value = "Ошибка: длина заготовки должна быть положительным числом.";
+        return;
+      }
+
+      if (elements.length === 0) {
+        output.value = "Ошибка: необходимо ввести хотя бы одну длину элемента.";
+        return;
+      }
+
+      // Расчет раскроя
+      const result = calculateCut(stockLength, elements);
+
+      // Формируем отчет
+      let report = `Всего использовано заготовок: ${result.totalStockUsed} по ${stockLength} м\n`;
+      report += `Общий остаток отходов: ${result.leftoverWaste} метров\n`;
+      report += `Детализация раскроя:\n`;
+      result.details.forEach(stock => {
+        report += `Заготовка №${stock.stockNumber}: элементы [${stock.elements.join(", ")}], остаток отхода: ${stock.remainingWaste} м\n`;
+      });
+
+      // Вывод отчета
+      output.value = report;
+    }
+
+    function calculateCut(stockLength, elements) {
+      elements.sort((a, b) => b - a);
+
+      const stockUsage = [];
+      let leftoverWaste = 0;
+
+      elements.forEach((element) => {
+        let placed = false;
+
+        for (let i = 0; i < stockUsage.length; i++) {
+          const stock = stockUsage[i];
+          if (stock.remaining >= element) {
+            stock.elements.push(element);
+            stock.remaining -= element;
+            placed = true;
+            break;
+          }
+        }
+
+        if (!placed) {
+          stockUsage.push({
+            elements: [element],
+            remaining: stockLength - element,
+          });
+        }
+      });
+
+      leftoverWaste = stockUsage.reduce((sum, stock) => sum + stock.remaining, 0);
+
+      return {
+        totalStockUsed: stockUsage.length,
+        leftoverWaste: leftoverWaste.toFixed(2),
+        details: stockUsage.map((stock, index) => ({
+          stockNumber: index + 1,
+          elements: stock.elements,
+          remainingWaste: stock.remaining.toFixed(2),
+        })),
+      };
+    }
+  </script>
+</body>
+</html>
